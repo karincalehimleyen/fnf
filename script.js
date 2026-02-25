@@ -13,7 +13,7 @@ let gameRunning = false;
 const hitLineY = 500;
 let startTime = 0;
 
-// Simple beatmap — times in milliseconds relative to game start
+// Extended beatmap: 20 notes over 20 seconds
 const notes = [
     { time: 1000, lane: 0 },
     { time: 2000, lane: 1 },
@@ -22,7 +22,19 @@ const notes = [
     { time: 5000, lane: 0 },
     { time: 6000, lane: 1 },
     { time: 7000, lane: 2 },
-    { time: 8000, lane: 3 }
+    { time: 8000, lane: 3 },
+    { time: 9000, lane: 0 },
+    { time: 10000, lane: 1 },
+    { time: 11000, lane: 2 },
+    { time: 12000, lane: 3 },
+    { time: 13000, lane: 0 },
+    { time: 14000, lane: 1 },
+    { time: 15000, lane: 2 },
+    { time: 16000, lane: 3 },
+    { time: 17000, lane: 0 },
+    { time: 18000, lane: 1 },
+    { time: 19000, lane: 2 },
+    { time: 20000, lane: 3 }
 ];
 
 startBtn.addEventListener("click", () => {
