@@ -1,8 +1,8 @@
 body {
     text-align: center;
-    font-family: Arial;
     background: #111;
     color: white;
+    font-family: Arial;
 }
 
 #game {
@@ -16,17 +16,15 @@ body {
 
 .lane {
     flex: 1;
-    border-left: 1px solid gray;
-    border-right: 1px solid gray;
+    border: 1px solid #333;
     position: relative;
 }
 
 .note {
     position: absolute;
     width: 100%;
-    height: 20px;
+    height: 25px;
     background: cyan;
-    top: 0;
 }
 
 #hit-line {
