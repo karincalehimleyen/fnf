@@ -1,54 +1,60 @@
+const startBtn = document.getElementById("startBtn");
+const lanes = [
+    document.getElementById("lane0"),
+    document.getElementById("lane1"),
+    document.getElementById("lane2"),
+    document.getElementById("lane3")
+];
+
 let audio;
 let score = 0;
 let notes = [];
 let activeNotes = [];
-let gameStarted = false;
+let gameRunning = false;
 
-const lanes = document.querySelectorAll(".lane");
-const hitLinePosition = 500;
+const hitLineY = 500;
 
+// Simple test beatmap
 notes = [
     { time: 1000, lane: 0 },
-    { time: 1500, lane: 1 },
-    { time: 2000, lane: 2 },
-    { time: 2500, lane: 3 },
-    { time: 3000, lane: 0 },
-    { time: 3500, lane: 1 },
-    { time: 4000, lane: 2 },
-    { time: 4500, lane: 3 }
+    { time: 2000, lane: 1 },
+    { time: 3000, lane: 2 },
+    { time: 4000, lane: 3 }
 ];
 
-function startGame() {
-    if (gameStarted) return;
+startBtn.addEventListener("click", () => {
+    if (gameRunning) return;
 
     audio = new Audio("music.mp3");
+
     audio.play().then(() => {
-        gameStarted = true;
+        gameRunning = true;
         requestAnimationFrame(gameLoop);
     }).catch(err => {
-        alert("Audio failed to load. Check music.mp3 is in the same folder.");
+        alert("Music failed to load. Make sure music.mp3 is in folder.");
         console.error(err);
     });
-}
+});
 
-function spawnNote(note) {
-    const noteDiv = document.createElement("div");
-    noteDiv.classList.add("note");
-    lanes[note.lane].appendChild(noteDiv);
+function spawnNote(noteData) {
+    const note = document.createElement("div");
+    note.classList.add("note");
+    lanes[noteData.lane].appendChild(note);
 
     activeNotes.push({
-        element: noteDiv,
-        lane: note.lane,
-        time: note.time,
+        element: note,
+        lane: noteData.lane,
+        time: noteData.time,
         hit: false
     });
 }
 
 function gameLoop() {
-    if (!gameStarted) return;
+    if (!gameRunning) return;
 
     let currentTime = audio.currentTime * 1000;
 
+    // Spawn notes
     notes.forEach(note => {
         if (!note.spawned && currentTime >= note.time - 2000) {
             spawnNote(note);
@@ -56,12 +62,17 @@ function gameLoop() {
         }
     });
 
+    // Move notes
     activeNotes.forEach(note => {
-        let timeDiff = note.time - currentTime;
-        let position = hitLinePosition - (timeDiff / 2000) * hitLinePosition;
-        note.element.style.top = position + "px";
+        if (note.hit) return;
 
-        if (position > hitLinePosition + 50 && !note.hit) {
+        let diff = note.time - currentTime;
+        let progress = 1 - (diff / 2000);
+
+        let y = progress * hitLineY;
+        note.element.style.top = y + "px";
+
+        if (y > hitLineY + 50) {
             note.hit = true;
             note.element.remove();
         }
@@ -70,8 +81,9 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
+// Key detection
 document.addEventListener("keydown", (e) => {
-    if (!gameStarted) return;
+    if (!gameRunning) return;
 
     const keyMap = {
         "ArrowLeft": 0,
@@ -89,7 +101,7 @@ document.addEventListener("keydown", (e) => {
         if (note.lane === lane && !note.hit) {
             let diff = Math.abs(note.time - currentTime);
 
-            if (diff < 150) {
+            if (diff < 200) {
                 score += 100;
                 document.getElementById("score").innerText = "Score: " + score;
                 note.hit = true;
