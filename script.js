@@ -1,12 +1,12 @@
-let audio = new Audio("music.mp3");
+let audio;
 let score = 0;
 let notes = [];
 let activeNotes = [];
+let gameStarted = false;
 
 const lanes = document.querySelectorAll(".lane");
-const hitLinePosition = 500; // pixels from top
+const hitLinePosition = 500;
 
-// Simple beatmap (milliseconds + lane)
 notes = [
     { time: 1000, lane: 0 },
     { time: 1500, lane: 1 },
@@ -19,8 +19,16 @@ notes = [
 ];
 
 function startGame() {
-    audio.play();
-    requestAnimationFrame(gameLoop);
+    if (gameStarted) return;
+
+    audio = new Audio("music.mp3");
+    audio.play().then(() => {
+        gameStarted = true;
+        requestAnimationFrame(gameLoop);
+    }).catch(err => {
+        alert("Audio failed to load. Check music.mp3 is in the same folder.");
+        console.error(err);
+    });
 }
 
 function spawnNote(note) {
@@ -37,9 +45,10 @@ function spawnNote(note) {
 }
 
 function gameLoop() {
+    if (!gameStarted) return;
+
     let currentTime = audio.currentTime * 1000;
 
-    // Spawn notes
     notes.forEach(note => {
         if (!note.spawned && currentTime >= note.time - 2000) {
             spawnNote(note);
@@ -47,13 +56,11 @@ function gameLoop() {
         }
     });
 
-    // Move notes
     activeNotes.forEach(note => {
         let timeDiff = note.time - currentTime;
         let position = hitLinePosition - (timeDiff / 2000) * hitLinePosition;
         note.element.style.top = position + "px";
 
-        // Miss detection
         if (position > hitLinePosition + 50 && !note.hit) {
             note.hit = true;
             note.element.remove();
@@ -63,8 +70,9 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-// Key input
 document.addEventListener("keydown", (e) => {
+    if (!gameStarted) return;
+
     const keyMap = {
         "ArrowLeft": 0,
         "ArrowDown": 1,
