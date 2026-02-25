@@ -13,28 +13,18 @@ let gameRunning = false;
 const hitLineY = 500;
 let startTime = 0;
 
-// Extended beatmap: 20 notes over 20 seconds
-const notes = [
-    { time: 1000, lane: 0 },
-    { time: 2000, lane: 1 },
-    { time: 3000, lane: 2 },
-    { time: 4000, lane: 3 },
-    { time: 5000, lane: 0 },
-    { time: 6000, lane: 1 },
-    { time: 7000, lane: 2 },
-    { time: 8000, lane: 3 },
-    { time: 9000, lane: 0 },
-    { time: 10000, lane: 1 },
-    { time: 11000, lane: 2 },
-    { time: 12000, lane: 3 },
-    { time: 13000, lane: 0 },
-    { time: 14000, lane: 1 },
-    { time: 15000, lane: 2 },
-    { time: 16000, lane: 3 },
-    { time: 17000, lane: 0 },
-    { time: 18000, lane: 1 },
-    { time: 19000, lane: 2 },
-    { time: 20000, lane: 3 }
+// Game settings
+let spawnInterval = 700;      // Initial ms between notes
+let noteTravelTime = 2000;    // Initial ms for note to reach hit line
+const minSpawnInterval = 250; // Minimum interval (max speed)
+const minTravelTime = 800;    // Minimum travel time (notes move faster)
+const difficultyRamp = 0.98;  // Multiply intervals by this factor every 5 seconds
+
+// Define note types: color and points
+const noteTypes = [
+    { color: "cyan", points: 100 },      // Normal note
+    { color: "yellow", points: 200 },    // Medium point note
+    { color: "magenta", points: 300 }    // High point note
 ];
 
 startBtn.addEventListener("click", () => {
@@ -42,41 +32,52 @@ startBtn.addEventListener("click", () => {
     gameRunning = true;
     startTime = performance.now();
     requestAnimationFrame(gameLoop);
+    spawnNoteLoop();
+    rampDifficulty();
 });
 
-function spawnNote(noteData) {
+function spawnRandomNote() {
+    const lane = Math.floor(Math.random() * lanes.length);
+    const type = noteTypes[Math.floor(Math.random() * noteTypes.length)]; // Random type
+
     const note = document.createElement("div");
     note.classList.add("note");
-    lanes[noteData.lane].appendChild(note);
+    note.style.background = type.color; // Set color
+    lanes[lane].appendChild(note);
 
     activeNotes.push({
         element: note,
-        lane: noteData.lane,
-        time: noteData.time,
-        hit: false
+        lane: lane,
+        spawnTime: performance.now(),
+        hit: false,
+        points: type.points
     });
+}
+
+function spawnNoteLoop() {
+    if (!gameRunning) return;
+    spawnRandomNote();
+    setTimeout(spawnNoteLoop, spawnInterval);
+}
+
+function rampDifficulty() {
+    if (!gameRunning) return;
+
+    spawnInterval = Math.max(spawnInterval * difficultyRamp, minSpawnInterval);
+    noteTravelTime = Math.max(noteTravelTime * difficultyRamp, minTravelTime);
+
+    setTimeout(rampDifficulty, 5000);
 }
 
 function gameLoop() {
     if (!gameRunning) return;
 
-    let elapsed = performance.now() - startTime;
+    const now = performance.now();
 
-    // Spawn notes
-    notes.forEach(note => {
-        if (!note.spawned && elapsed >= note.time - 2000) {
-            spawnNote(note);
-            note.spawned = true;
-        }
-    });
-
-    // Move notes
     activeNotes.forEach(note => {
         if (note.hit) return;
 
-        let diff = note.time - elapsed;
-        let progress = 1 - (diff / 2000);
-
+        let progress = (now - note.spawnTime) / noteTravelTime;
         let y = progress * hitLineY;
         note.element.style.top = y + "px";
 
@@ -102,15 +103,14 @@ document.addEventListener("keydown", (e) => {
 
     if (!(e.key in keyMap)) return;
 
-    let lane = keyMap[e.key];
-    let elapsed = performance.now() - startTime;
+    const lane = keyMap[e.key];
+    const now = performance.now();
 
     activeNotes.forEach(note => {
         if (note.lane === lane && !note.hit) {
-            let diff = Math.abs(note.time - elapsed);
-
+            const diff = Math.abs((note.spawnTime + noteTravelTime) - now);
             if (diff < 200) {
-                score += 100;
+                score += note.points; // Add points based on note color
                 document.getElementById("score").innerText = "Score: " + score;
                 note.hit = true;
                 note.element.remove();
