@@ -6,11 +6,10 @@ const lanes = [
 ];
 
 const hitLineY = 500;
-const audio = new Audio("music.mp3");
 
 let gameRunning = false;
 let mode = "story";
-let difficulty = 1;
+let difficulty = 2; // Default Normal
 
 let score = 0;
 let combo = 0;
@@ -38,12 +37,18 @@ const difficulties = [
 
 const difficultyContainer = document.getElementById("difficulty-buttons");
 
+// Difficulty butonlarını oluştur
 difficulties.forEach(diff => {
     const btn = document.createElement("button");
     btn.innerText = diff.name;
     btn.onclick = () => setDifficulty(diff);
     difficultyContainer.appendChild(btn);
 });
+
+// Default difficulty
+setDifficulty(difficulties[1]); // Normal default
+
+let gameStartTime = 0;
 
 function setDifficulty(diff) {
     difficulty = diff.level;
@@ -58,8 +63,8 @@ function startGame(selectedMode) {
     mode = selectedMode;
     resetGame();
     generateBeatmap();
-    audio.currentTime = 0;
-    audio.play();
+
+    gameStartTime = performance.now();
     gameRunning = true;
     requestAnimationFrame(gameLoop);
 }
@@ -72,6 +77,11 @@ function resetGame() {
     totalHitValue = 0;
     totalPossibleValue = 0;
     activeNotes = [];
+
+    // Clear lane divs
+    lanes.forEach(lane => {
+        lane.innerHTML = "";
+    });
 }
 
 function generateBeatmap() {
@@ -100,7 +110,7 @@ function spawnNote(note) {
 function gameLoop() {
     if (!gameRunning) return;
 
-    let currentTime = audio.currentTime * 1000;
+    let currentTime = performance.now() - gameStartTime; // müzik yok, kendi zamanı
 
     activeNotes.forEach(note => {
         if (!note.element && currentTime >= note.time - 2000) {
@@ -119,7 +129,7 @@ function gameLoop() {
 
     updateHUD();
 
-    if (audio.ended && mode === "story") {
+    if (activeNotes.every(n => n.hit) && mode === "story") {
         endGame();
     }
 
@@ -139,7 +149,7 @@ document.addEventListener("keydown", e => {
     if (!(e.key in keyMap)) return;
 
     let lane = keyMap[e.key];
-    let currentTime = audio.currentTime * 1000;
+    let currentTime = performance.now() - gameStartTime;
 
     activeNotes.forEach(note => {
         if (note.lane === lane && !note.hit && note.element) {
@@ -154,7 +164,7 @@ document.addEventListener("keydown", e => {
 
 function registerHit(note, diff) {
     note.hit = true;
-    note.element.remove();
+    if (note.element) note.element.remove();
 
     let value = 350;
 
