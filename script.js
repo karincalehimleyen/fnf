@@ -8,7 +8,7 @@ const lanes = [
 const hitLineY = 500;
 
 let gameRunning = false;
-let mode = null;  // story or endless
+let mode = null; // 'story' veya 'endless'
 let difficulty = 2; // Default Normal
 
 let score = 0;
@@ -41,31 +41,39 @@ const difficultySelection = document.getElementById("difficulty-selection");
 const hud = document.getElementById("hud");
 const gameArea = document.getElementById("game");
 
-// Create difficulty buttons but keep difficultySelection hidden at start
+// Önceden tanımlı beatmapler (story mod zorluklarına göre)
+const beatmaps = {
+    1: [ /* Easy notes */ ],
+    2: [ /* Normal notes */ ],
+    3: [ /* Hard notes */ ],
+    4: [ /* Insane notes */ ],
+    5: [ /* Extreme notes */ ],
+    6: [ /* Terrifying notes */ ]
+};
+
+// Menüde difficulty butonları oluşturuluyor
 difficulties.forEach(diff => {
     const btn = document.createElement("button");
     btn.innerText = diff.name;
     btn.onclick = () => {
         setDifficulty(diff);
-        startGame('story');
+        startGame(mode);
     };
     difficultyContainer.appendChild(btn);
 });
 
-// Story Mode button
 document.getElementById("storyBtn").onclick = () => {
     mode = "story";
-    // Show difficulty selection, hide mode buttons
     difficultySelection.style.display = "block";
     document.getElementById("storyBtn").style.display = "none";
     document.getElementById("endlessBtn").style.display = "none";
 };
 
-// Endless Mode button
 document.getElementById("endlessBtn").onclick = () => {
     mode = "endless";
-    setDifficulty(difficulties[1]); // default Normal difficulty for endless
-    startGame('endless');
+    difficultySelection.style.display = "block";
+    document.getElementById("storyBtn").style.display = "none";
+    document.getElementById("endlessBtn").style.display = "none";
 };
 
 let gameStartTime = 0;
@@ -84,11 +92,8 @@ function startGame(selectedMode) {
     resetGame();
     generateBeatmap();
 
-    // Hide menu and difficulty selectors
     menu.style.display = "none";
     difficultySelection.style.display = "none";
-
-    // Show HUD and game area
     hud.style.display = "block";
     gameArea.style.display = "flex";
 
@@ -106,44 +111,33 @@ function resetGame() {
     totalPossibleValue = 0;
     activeNotes = [];
 
-    // Clear lane divs
-    lanes.forEach(lane => {
-        lane.innerHTML = "";
-    });
-
+    lanes.forEach(lane => lane.innerHTML = "");
     updateHUD();
 }
 
 function generateBeatmap() {
     activeNotes = [];
-    if (mode === "story") {
-        // For story mode, create fixed length notes (example: 50 notes)
-        for (let i = 0; i < 50; i++) {
-            let beat = i;
-            let time = beat * beatDuration;
-            let lane = Math.floor(Math.random() * 4);
 
-            activeNotes.push({
-                time,
-                lane,
-                hit: false,
-                element: null
+    if (mode === "story") {
+        const map = beatmaps[difficulty];
+        if (!map) {
+            for (let i = 0; i < 50; i++) {
+                const time = i * beatDuration;
+                const lane = Math.floor(Math.random() * 4);
+                activeNotes.push({ time, lane, hit: false, element: null });
+            }
+        } else {
+            map.forEach(note => {
+                activeNotes.push({ ...note, hit: false, element: null });
             });
         }
     } else {
-        // Endless mode - generate notes continuously in gameLoop (will implement later)
-        // For now generate initial notes
-        for (let i = 0; i < 20; i++) {
-            let beat = i;
-            let time = beat * beatDuration;
-            let lane = Math.floor(Math.random() * 4);
-
-            activeNotes.push({
-                time,
-                lane,
-                hit: false,
-                element: null
-            });
+        // Endless mod: rastgele nota üret, sürekli genişletilebilir
+        let lastTime = 0;
+        for (let i = 0; i < 50; i++) {
+            lastTime += (300 + Math.random() * 700) / difficulty; // Zorluk arttıkça aralık azalır
+            const lane = Math.floor(Math.random() * 4);
+            activeNotes.push({ time: lastTime, lane, hit: false, element: null });
         }
     }
 }
@@ -158,7 +152,18 @@ function spawnNote(note) {
 function gameLoop() {
     if (!gameRunning) return;
 
-    let currentTime = performance.now() - gameStartTime;
+    const currentTime = performance.now() - gameStartTime;
+
+    // Endless modda yeni notalar ekle
+    if (mode === "endless") {
+        // Sürekli yeni nota eklemek için basit örnek
+        const lastNote = activeNotes.length ? activeNotes[activeNotes.length - 1] : null;
+        if (!lastNote || currentTime > lastNote.time - 2000) {
+            const nextTime = lastNote ? lastNote.time + (300 + Math.random() * 700) / difficulty : 0;
+            const lane = Math.floor(Math.random() * 4);
+            activeNotes.push({ time: nextTime, lane, hit: false, element: null });
+        }
+    }
 
     activeNotes.forEach(note => {
         if (!note.element && currentTime >= note.time - 2000) {
@@ -166,7 +171,7 @@ function gameLoop() {
         }
 
         if (note.element && !note.hit) {
-            let y = hitLineY - (note.time - currentTime) * scrollSpeed;
+            const y = hitLineY - (note.time - currentTime) * scrollSpeed;
             note.element.style.top = y + "px";
 
             if (y > hitLineY + 50) {
@@ -196,12 +201,12 @@ document.addEventListener("keydown", e => {
 
     if (!(e.key in keyMap)) return;
 
-    let lane = keyMap[e.key];
-    let currentTime = performance.now() - gameStartTime;
+    const lane = keyMap[e.key];
+    const currentTime = performance.now() - gameStartTime;
 
     activeNotes.forEach(note => {
         if (note.lane === lane && !note.hit && note.element) {
-            let diff = Math.abs(note.time - currentTime);
+            const diff = Math.abs(note.time - currentTime);
 
             if (diff < hitWindow) {
                 registerHit(note, diff);
@@ -215,7 +220,6 @@ function registerHit(note, diff) {
     if (note.element) note.element.remove();
 
     let value = 350;
-
     if (diff > 150) value = 100;
     else if (diff > 100) value = 200;
     else if (diff > 50) value = 300;
@@ -240,11 +244,7 @@ function registerMiss(note) {
     health -= 10;
 
     if (health <= 0) {
-        if (mode === "story") {
-            failGame();
-        } else {
-            health = 10; // Endless rock bottom
-        }
+        failGame();
     }
 }
 
@@ -253,11 +253,9 @@ function updateHUD() {
     document.getElementById("combo").innerText = "Combo: " + combo;
     document.getElementById("miss").innerText = "Miss: " + missCount;
 
-    let accuracy = totalPossibleValue === 0 ? 100 :
-        (totalHitValue / totalPossibleValue) * 100;
+    const accuracy = totalPossibleValue === 0 ? 100 : (totalHitValue / totalPossibleValue) * 100;
 
-    document.getElementById("accuracy").innerText =
-        "Accuracy: " + accuracy.toFixed(2) + "%";
+    document.getElementById("accuracy").innerText = "Accuracy: " + accuracy.toFixed(2) + "%";
 
     document.getElementById("health-bar").style.width = health + "%";
 }
@@ -275,13 +273,11 @@ function endGame() {
 }
 
 function resetToMenu() {
-    // Göster menüyü, gizle oyun ve HUD
     menu.style.display = "block";
     difficultySelection.style.display = "none";
     hud.style.display = "none";
     gameArea.style.display = "none";
 
-    // Reset mod ve difficulty butonları görünümü
     document.getElementById("storyBtn").style.display = "inline-block";
     document.getElementById("endlessBtn").style.display = "inline-block";
 }
