@@ -1,4 +1,4 @@
-// Çavuş Game - Son Hali Script.js
+// Çavuş Game - Son Hali JS (Endless Mode gerçekten sonsuz)
 
 const lanes = [
     document.getElementById("lane0"),
@@ -11,7 +11,7 @@ const hitLineY = 500;
 
 let gameRunning = false;
 let mode = null; // 'story' veya 'endless'
-let difficulty = 2; // Default Normal
+let difficulty = 2;
 
 let score = 0;
 let combo = 0;
@@ -43,17 +43,13 @@ const difficultySelection = document.getElementById("difficulty-selection");
 const hud = document.getElementById("hud");
 const gameArea = document.getElementById("game");
 
-// Önceden tanımlı beatmapler (story mod zorluklarına göre)
 const beatmaps = {
-    1: [ {time:1000,lane:0},{time:2000,lane:1},{time:3000,lane:2},{time:4000,lane:3},{time:5000,lane:0},{time:6000,lane:1} ],
-    2: [ {time:800,lane:0},{time:1600,lane:1},{time:2400,lane:2},{time:3200,lane:3},{time:4000,lane:0},{time:4800,lane:1},{time:5600,lane:2},{time:6400,lane:3} ],
-    3: [ {time:600,lane:0},{time:1100,lane:1},{time:1600,lane:2},{time:2100,lane:3},{time:2600,lane:0},{time:3100,lane:1},{time:3600,lane:2},{time:4100,lane:3},{time:4600,lane:0},{time:5100,lane:1} ],
-    4: [ {time:500,lane:0},{time:900,lane:1},{time:1300,lane:2},{time:1700,lane:3},{time:2100,lane:0},{time:2500,lane:1},{time:2900,lane:2},{time:3300,lane:3},{time:3700,lane:0},{time:4100,lane:1},{time:4500,lane:2} ],
-    5: [ {time:400,lane:0},{time:800,lane:1},{time:1200,lane:2},{time:1600,lane:3},{time:2000,lane:0},{time:2400,lane:1},{time:2800,lane:2},{time:3200,lane:3},{time:3600,lane:0},{time:4000,lane:1},{time:4400,lane:2},{time:4800,lane:3} ],
-    6: [ {time:350,lane:0},{time:700,lane:1},{time:1050,lane:2},{time:1400,lane:3},{time:1750,lane:0},{time:2100,lane:1},{time:2450,lane:2},{time:2800,lane:3},{time:3150,lane:0},{time:3500,lane:1},{time:3850,lane:2},{time:4200,lane:3},{time:4550,lane:0},{time:4900,lane:1} ]
+    1: [ {time:1000,lane:0},{time:2000,lane:1},{time:3000,lane:2},{time:4000,lane:3} ],
+    2: [ {time:800,lane:0},{time:1600,lane:1},{time:2400,lane:2},{time:3200,lane:3} ]
+    // Diğer zorluklar story modda kullanılabilir
 };
 
-// Menüde difficulty butonları oluşturuluyor
+// Menü butonları
 difficulties.forEach(diff => {
     const btn = document.createElement("button");
     btn.innerText = diff.name;
@@ -91,11 +87,14 @@ function setDifficulty(diff) {
 function startGame(selectedMode) {
     mode = selectedMode;
     resetGame();
-    generateBeatmap();
+    if(mode==="story") generateStoryBeatmap();
+    else if(mode==="endless") generateEndlessInitialNotes();
+
     menu.style.display = "none";
     difficultySelection.style.display = "none";
     hud.style.display = "block";
     gameArea.style.display = "flex";
+
     gameStartTime = performance.now();
     gameRunning = true;
     requestAnimationFrame(gameLoop);
@@ -113,19 +112,19 @@ function resetGame() {
     updateHUD();
 }
 
-function generateBeatmap() {
+// Story mod beatmapi
+function generateStoryBeatmap(){
+    const map = beatmaps[difficulty] || [];
+    map.forEach(note => activeNotes.push({...note, hit:false, element:null}));
+}
+
+// Endless mod başlangıç notaları
+function generateEndlessInitialNotes(){
     activeNotes = [];
-    if (mode === "story") {
-        const map = beatmaps[difficulty];
-        map.forEach(note => activeNotes.push({ ...note, hit:false, element:null }));
-    } else if (mode === "endless") {
-        // Endless başlangıç beatmapi
-        let lastTime = 0;
-        for (let i = 0; i < 50; i++) {
-            lastTime += (300 + Math.random() * 700) / difficulty;
-            const lane = Math.floor(Math.random() * 4);
-            activeNotes.push({ time:lastTime, lane, hit:false, element:null });
-        }
+    for(let i=0;i<30;i++){
+        const time = i * (300 + Math.random()*700)/difficulty;
+        const lane = Math.floor(Math.random()*4);
+        activeNotes.push({time,lane,hit:false,element:null});
     }
 }
 
@@ -140,11 +139,12 @@ function gameLoop(){
     if(!gameRunning) return;
     const currentTime = performance.now() - gameStartTime;
 
+    // Endless modda sürekli yeni nota ekleme
     if(mode==="endless"){
-        const lastNote = activeNotes.length ? activeNotes[activeNotes.length-1] : null;
+        const lastNote = activeNotes[activeNotes.length-1];
         if(!lastNote || currentTime > lastNote.time - 2000){
-            const nextTime = lastNote ? lastNote.time + (300 + Math.random() * 700) / difficulty : 0;
-            const lane = Math.floor(Math.random() * 4);
+            const nextTime = lastNote ? lastNote.time + (300 + Math.random()*700)/difficulty : 0;
+            const lane = Math.floor(Math.random()*4);
             activeNotes.push({time:nextTime,lane,hit:false,element:null});
         }
     }
@@ -191,8 +191,8 @@ function registerHit(note,diff){
     if(combo>maxCombo) maxCombo=combo;
     totalHitValue+=value;
     totalPossibleValue+=350;
-    if(mode==="story"){ health=Math.min(health+2,100); }
-    else if(mode==="endless"){ health=Math.min(health+1,100); } // opsiyonel görsellik
+    if(mode==="story") health=Math.min(health+2,100);
+    else if(mode==="endless") health=Math.min(health+1,100); // görsellik
 }
 
 function registerMiss(note){
