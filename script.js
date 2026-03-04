@@ -1,4 +1,3 @@
-const startBtn = document.getElementById("startBtn");
 const lanes = [
     document.getElementById("lane0"),
     document.getElementById("lane1"),
@@ -6,124 +5,211 @@ const lanes = [
     document.getElementById("lane3")
 ];
 
-let score = 0;
-let activeNotes = [];
-let gameRunning = false;
-
 const hitLineY = 500;
-let startTime = 0;
+const audio = new Audio("music.mp3");
 
-// Game settings
-let spawnInterval = 700;      // Initial ms between notes
-let noteTravelTime = 2000;    // Initial ms for note to reach hit line
-const minSpawnInterval = 250;
-const minTravelTime = 800;
-const difficultyRamp = 0.98;
+let gameRunning = false;
+let mode = "story";
+let difficulty = 1;
 
-// Define note types: color, points, size multiplier, speed multiplier
-const noteTypes = [
-    { color: "cyan", points: 100, size: 1, speed: 1 },         // Normal note
-    { color: "yellow", points: 200, size: 1, speed: 1 },       // Medium note
-    { color: "magenta", points: 300, size: 0.8, speed: 1.2 }  // Rare fast small note
+let score = 0;
+let combo = 0;
+let maxCombo = 0;
+let missCount = 0;
+let health = 50;
+
+let totalHitValue = 0;
+let totalPossibleValue = 0;
+
+let activeNotes = [];
+let bpm = 120;
+let beatDuration;
+let scrollSpeed;
+let hitWindow;
+
+const difficulties = [
+    { name: "Easy", level: 1, bpm: 90 },
+    { name: "Normal", level: 2, bpm: 120 },
+    { name: "Hard", level: 3, bpm: 150 },
+    { name: "Insane", level: 4, bpm: 170 },
+    { name: "Extreme", level: 5, bpm: 190 },
+    { name: "Terrifying", level: 6, bpm: 210 }
 ];
 
-startBtn.addEventListener("click", () => {
-    if (gameRunning) return;
-    gameRunning = true;
-    startTime = performance.now();
-    requestAnimationFrame(gameLoop);
-    spawnNoteLoop();
-    rampDifficulty();
+const difficultyContainer = document.getElementById("difficulty-buttons");
+
+difficulties.forEach(diff => {
+    const btn = document.createElement("button");
+    btn.innerText = diff.name;
+    btn.onclick = () => setDifficulty(diff);
+    difficultyContainer.appendChild(btn);
 });
 
-function spawnRandomNote() {
-    const lane = Math.floor(Math.random() * lanes.length);
+function setDifficulty(diff) {
+    difficulty = diff.level;
+    bpm = diff.bpm;
+    beatDuration = 60000 / bpm;
 
-    // Weighted random for rare high-point notes
-    let rand = Math.random();
-    let type;
-    if (rand < 0.6) type = noteTypes[0];       // Cyan 60%
-    else if (rand < 0.9) type = noteTypes[1];  // Yellow 30%
-    else type = noteTypes[2];                  // Magenta 10%
-
-    const note = document.createElement("div");
-    note.classList.add("note");
-    note.style.background = type.color;
-    note.style.width = `${30 * type.size}px`;
-    note.style.height = `${30 * type.size}px`;
-    lanes[lane].appendChild(note);
-
-    activeNotes.push({
-        element: note,
-        lane: lane,
-        spawnTime: performance.now(),
-        hit: false,
-        points: type.points,
-        speed: type.speed
-    });
+    scrollSpeed = 0.25 + difficulty * 0.05;
+    hitWindow = 200 - difficulty * 20;
 }
 
-function spawnNoteLoop() {
-    if (!gameRunning) return;
-    spawnRandomNote();
-    setTimeout(spawnNoteLoop, spawnInterval);
+function startGame(selectedMode) {
+    mode = selectedMode;
+    resetGame();
+    generateBeatmap();
+    audio.currentTime = 0;
+    audio.play();
+    gameRunning = true;
+    requestAnimationFrame(gameLoop);
 }
 
-function rampDifficulty() {
-    if (!gameRunning) return;
+function resetGame() {
+    score = 0;
+    combo = 0;
+    missCount = 0;
+    health = 50;
+    totalHitValue = 0;
+    totalPossibleValue = 0;
+    activeNotes = [];
+}
 
-    spawnInterval = Math.max(spawnInterval * difficultyRamp, minSpawnInterval);
-    noteTravelTime = Math.max(noteTravelTime * difficultyRamp, minTravelTime);
+function generateBeatmap() {
+    activeNotes = [];
+    for (let i = 0; i < 100; i++) {
+        let beat = i;
+        let time = beat * beatDuration;
+        let lane = Math.floor(Math.random() * 4);
 
-    setTimeout(rampDifficulty, 5000);
+        activeNotes.push({
+            time,
+            lane,
+            hit: false,
+            element: null
+        });
+    }
+}
+
+function spawnNote(note) {
+    const el = document.createElement("div");
+    el.classList.add("note");
+    lanes[note.lane].appendChild(el);
+    note.element = el;
 }
 
 function gameLoop() {
     if (!gameRunning) return;
 
-    const now = performance.now();
+    let currentTime = audio.currentTime * 1000;
 
     activeNotes.forEach(note => {
-        if (note.hit) return;
+        if (!note.element && currentTime >= note.time - 2000) {
+            spawnNote(note);
+        }
 
-        let progress = (now - note.spawnTime) / (noteTravelTime / note.speed);
-        let y = progress * hitLineY;
-        note.element.style.top = y + "px";
+        if (note.element && !note.hit) {
+            let y = hitLineY - (note.time - currentTime) * scrollSpeed;
+            note.element.style.top = y + "px";
 
-        if (y > hitLineY + 50) {
-            note.hit = true;
-            note.element.remove();
+            if (y > hitLineY + 50) {
+                registerMiss(note);
+            }
         }
     });
+
+    updateHUD();
+
+    if (audio.ended && mode === "story") {
+        endGame();
+    }
 
     requestAnimationFrame(gameLoop);
 }
 
-// Key detection
-document.addEventListener("keydown", (e) => {
+document.addEventListener("keydown", e => {
     if (!gameRunning) return;
 
     const keyMap = {
-        "ArrowLeft": 0,
-        "ArrowDown": 1,
-        "ArrowUp": 2,
-        "ArrowRight": 3
+        ArrowLeft: 0,
+        ArrowDown: 1,
+        ArrowUp: 2,
+        ArrowRight: 3
     };
 
     if (!(e.key in keyMap)) return;
 
-    const lane = keyMap[e.key];
-    const now = performance.now();
+    let lane = keyMap[e.key];
+    let currentTime = audio.currentTime * 1000;
 
     activeNotes.forEach(note => {
-        if (note.lane === lane && !note.hit) {
-            const diff = Math.abs((note.spawnTime + noteTravelTime / note.speed) - now);
-            if (diff < 200) {
-                score += note.points;
-                document.getElementById("score").innerText = "Score: " + score;
-                note.hit = true;
-                note.element.remove();
+        if (note.lane === lane && !note.hit && note.element) {
+            let diff = Math.abs(note.time - currentTime);
+
+            if (diff < hitWindow) {
+                registerHit(note, diff);
             }
         }
     });
 });
+
+function registerHit(note, diff) {
+    note.hit = true;
+    note.element.remove();
+
+    let value = 350;
+
+    if (diff > 150) value = 100;
+    else if (diff > 100) value = 200;
+    else if (diff > 50) value = 300;
+
+    score += value;
+    combo++;
+    if (combo > maxCombo) maxCombo = combo;
+
+    totalHitValue += value;
+    totalPossibleValue += 350;
+
+    health += 2;
+    if (health > 100) health = 100;
+}
+
+function registerMiss(note) {
+    note.hit = true;
+    if (note.element) note.element.remove();
+
+    combo = 0;
+    missCount++;
+    health -= 10;
+
+    if (health <= 0) {
+        if (mode === "story") {
+            failGame();
+        } else {
+            health = 10; // Endless rock bottom
+        }
+    }
+}
+
+function updateHUD() {
+    document.getElementById("score").innerText = "Score: " + score;
+    document.getElementById("combo").innerText = "Combo: " + combo;
+    document.getElementById("miss").innerText = "Miss: " + missCount;
+
+    let accuracy = totalPossibleValue === 0 ? 100 :
+        (totalHitValue / totalPossibleValue) * 100;
+
+    document.getElementById("accuracy").innerText =
+        "Accuracy: " + accuracy.toFixed(2) + "%";
+
+    document.getElementById("health-bar").style.width = health + "%";
+}
+
+function failGame() {
+    gameRunning = false;
+    alert("FAILED");
+}
+
+function endGame() {
+    gameRunning = false;
+    alert("PASSED");
+}
