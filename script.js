@@ -8,7 +8,7 @@ const lanes = [
 const hitLineY = 500;
 
 let gameRunning = false;
-let mode = "story";
+let mode = null;  // story or endless
 let difficulty = 2; // Default Normal
 
 let score = 0;
@@ -36,17 +36,37 @@ const difficulties = [
 ];
 
 const difficultyContainer = document.getElementById("difficulty-buttons");
+const menu = document.getElementById("menu");
+const difficultySelection = document.getElementById("difficulty-selection");
+const hud = document.getElementById("hud");
+const gameArea = document.getElementById("game");
 
-// Difficulty butonlarını oluştur
+// Create difficulty buttons but keep difficultySelection hidden at start
 difficulties.forEach(diff => {
     const btn = document.createElement("button");
     btn.innerText = diff.name;
-    btn.onclick = () => setDifficulty(diff);
+    btn.onclick = () => {
+        setDifficulty(diff);
+        startGame('story');
+    };
     difficultyContainer.appendChild(btn);
 });
 
-// Default difficulty
-setDifficulty(difficulties[1]); // Normal default
+// Story Mode button
+document.getElementById("storyBtn").onclick = () => {
+    mode = "story";
+    // Show difficulty selection, hide mode buttons
+    difficultySelection.style.display = "block";
+    document.getElementById("storyBtn").style.display = "none";
+    document.getElementById("endlessBtn").style.display = "none";
+};
+
+// Endless Mode button
+document.getElementById("endlessBtn").onclick = () => {
+    mode = "endless";
+    setDifficulty(difficulties[1]); // default Normal difficulty for endless
+    startGame('endless');
+};
 
 let gameStartTime = 0;
 
@@ -63,6 +83,14 @@ function startGame(selectedMode) {
     mode = selectedMode;
     resetGame();
     generateBeatmap();
+
+    // Hide menu and difficulty selectors
+    menu.style.display = "none";
+    difficultySelection.style.display = "none";
+
+    // Show HUD and game area
+    hud.style.display = "block";
+    gameArea.style.display = "flex";
 
     gameStartTime = performance.now();
     gameRunning = true;
@@ -82,21 +110,41 @@ function resetGame() {
     lanes.forEach(lane => {
         lane.innerHTML = "";
     });
+
+    updateHUD();
 }
 
 function generateBeatmap() {
     activeNotes = [];
-    for (let i = 0; i < 100; i++) {
-        let beat = i;
-        let time = beat * beatDuration;
-        let lane = Math.floor(Math.random() * 4);
+    if (mode === "story") {
+        // For story mode, create fixed length notes (example: 50 notes)
+        for (let i = 0; i < 50; i++) {
+            let beat = i;
+            let time = beat * beatDuration;
+            let lane = Math.floor(Math.random() * 4);
 
-        activeNotes.push({
-            time,
-            lane,
-            hit: false,
-            element: null
-        });
+            activeNotes.push({
+                time,
+                lane,
+                hit: false,
+                element: null
+            });
+        }
+    } else {
+        // Endless mode - generate notes continuously in gameLoop (will implement later)
+        // For now generate initial notes
+        for (let i = 0; i < 20; i++) {
+            let beat = i;
+            let time = beat * beatDuration;
+            let lane = Math.floor(Math.random() * 4);
+
+            activeNotes.push({
+                time,
+                lane,
+                hit: false,
+                element: null
+            });
+        }
     }
 }
 
@@ -110,7 +158,7 @@ function spawnNote(note) {
 function gameLoop() {
     if (!gameRunning) return;
 
-    let currentTime = performance.now() - gameStartTime; // müzik yok, kendi zamanı
+    let currentTime = performance.now() - gameStartTime;
 
     activeNotes.forEach(note => {
         if (!note.element && currentTime >= note.time - 2000) {
@@ -129,7 +177,7 @@ function gameLoop() {
 
     updateHUD();
 
-    if (activeNotes.every(n => n.hit) && mode === "story") {
+    if (mode === "story" && activeNotes.every(n => n.hit)) {
         endGame();
     }
 
@@ -217,9 +265,23 @@ function updateHUD() {
 function failGame() {
     gameRunning = false;
     alert("FAILED");
+    resetToMenu();
 }
 
 function endGame() {
     gameRunning = false;
     alert("PASSED");
+    resetToMenu();
+}
+
+function resetToMenu() {
+    // Göster menüyü, gizle oyun ve HUD
+    menu.style.display = "block";
+    difficultySelection.style.display = "none";
+    hud.style.display = "none";
+    gameArea.style.display = "none";
+
+    // Reset mod ve difficulty butonları görünümü
+    document.getElementById("storyBtn").style.display = "inline-block";
+    document.getElementById("endlessBtn").style.display = "inline-block";
 }
