@@ -7,7 +7,26 @@
 <body>
 
 <h1>Çavuş Game</h1>
-<div id="score">Score: 0</div>
+
+<div id="menu">
+    <h2>Select Mode</h2>
+    <button onclick="startGame('story')">Story Mode</button>
+    <button onclick="startGame('endless')">Endless Mode</button>
+
+    <h2>Select Difficulty</h2>
+    <div id="difficulty-buttons"></div>
+</div>
+
+<div id="hud">
+    <div id="score">Score: 0</div>
+    <div id="combo">Combo: 0</div>
+    <div id="miss">Miss: 0</div>
+    <div id="accuracy">Accuracy: 100%</div>
+
+    <div id="health-container">
+        <div id="health-bar"></div>
+    </div>
+</div>
 
 <div id="game">
     <div class="lane" id="lane0"></div>
@@ -16,8 +35,6 @@
     <div class="lane" id="lane3"></div>
     <div id="hit-line"></div>
 </div>
-
-<button id="startBtn">Start Game</button>
 
 <script src="script.js"></script>
 </body>
