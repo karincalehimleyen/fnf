@@ -10,14 +10,16 @@
 
 <div id="menu">
     <h2>Select Mode</h2>
-    <button onclick="startGame('story')">Story Mode</button>
-    <button onclick="startGame('endless')">Endless Mode</button>
+    <button id="storyBtn">Story Mode</button>
+    <button id="endlessBtn">Endless Mode</button>
 
-    <h2>Select Difficulty</h2>
-    <div id="difficulty-buttons"></div>
+    <div id="difficulty-selection" style="display:none;">
+        <h2>Select Difficulty</h2>
+        <div id="difficulty-buttons"></div>
+    </div>
 </div>
 
-<div id="hud">
+<div id="hud" style="display:none;">
     <div id="score">Score: 0</div>
     <div id="combo">Combo: 0</div>
     <div id="miss">Miss: 0</div>
@@ -28,7 +30,7 @@
     </div>
 </div>
 
-<div id="game">
+<div id="game" style="display:none;">
     <div class="lane" id="lane0"></div>
     <div class="lane" id="lane1"></div>
     <div class="lane" id="lane2"></div>
