@@ -1,454 +1,283 @@
-// Çavuş Game - Düzeltilmiş Script (Story Mode Fix)
+// Çavuş Game - Music Mode
 
 const lanes = [
-    document.getElementById("lane0"),
-    document.getElementById("lane1"),
-    document.getElementById("lane2"),
-    document.getElementById("lane3")
+document.getElementById("lane0"),
+document.getElementById("lane1"),
+document.getElementById("lane2"),
+document.getElementById("lane3")
 ];
+
+const music = document.getElementById("game-music");
 
 const hitLineY = 500;
 
-let gameRunning = false;
-let mode = null;
-let difficulty = 2;
+let gameRunning=false;
+let mode=null;
 
-let score = 0;
-let combo = 0;
-let maxCombo = 0;
-let missCount = 0;
-let health = 50;
+let score=0;
+let combo=0;
+let missCount=0;
+let health=50;
 
-let totalHitValue = 0;
-let totalPossibleValue = 0;
+let totalHitValue=0;
+let totalPossibleValue=0;
 
-let activeNotes = [];
+let activeNotes=[];
 
-let bpm = 120;
-let beatDuration;
-let scrollSpeed;
-let hitWindow;
+let scrollSpeed=0.35;
+let hitWindow=180;
 
-let gameStartTime = 0;
+let gameStartTime=0;
 
-const difficulties = [
-    { name: "Easy", level: 1, bpm: 90 },
-    { name: "Normal", level: 2, bpm: 120 },
-    { name: "Hard", level: 3, bpm: 150 },
-    { name: "Insane", level: 4, bpm: 170 },
-    { name: "Extreme", level: 5, bpm: 190 },
-    { name: "Terrifying", level: 6, bpm: 210 }
+// MUSIC MODE BEATMAP
+// time = milisaniye
+// lane = 0 sol,1 aşağı,2 yukarı,3 sağ
+
+const musicChart = [
+
+{time:1000,lane:0},
+{time:1500,lane:1},
+{time:2000,lane:2},
+{time:2500,lane:3},
+
+{time:3000,lane:0},
+{time:3500,lane:1},
+{time:4000,lane:2},
+{time:4500,lane:3},
+
+{time:5000,lane:1},
+{time:5500,lane:2},
+{time:6000,lane:0},
+{time:6500,lane:3}
+
 ];
 
-const difficultyContainer = document.getElementById("difficulty-buttons");
-const menu = document.getElementById("menu");
-const difficultySelection = document.getElementById("difficulty-selection");
-const hud = document.getElementById("hud");
-const gameArea = document.getElementById("game");
+const menu=document.getElementById("menu");
+const hud=document.getElementById("hud");
+const gameArea=document.getElementById("game");
 
-const beatmaps = {
+// oyun başlat
+function startMusicMode(){
 
-1: [
-{time:0,lane:0},
-{time:600,lane:1},
-{time:1200,lane:2},
-{time:1800,lane:3},
-{time:2400,lane:0},
-{time:3000,lane:1},
-{time:3600,lane:2},
-{time:4200,lane:3}
-],
+resetGame();
 
-2: [
-{time:0,lane:0},
-{time:500,lane:1},
-{time:1000,lane:2},
-{time:1500,lane:3},
-{time:2000,lane:1},
-{time:2500,lane:2},
-{time:3000,lane:0},
-{time:3500,lane:3}
-],
+activeNotes=[];
 
-3: [
-{time:0,lane:0},
-{time:400,lane:1},
-{time:800,lane:2},
-{time:1200,lane:3},
-{time:1600,lane:0},
-{time:2000,lane:2},
-{time:2400,lane:1},
-{time:2800,lane:3}
-]
+musicChart.forEach(n=>{
 
-};
+activeNotes.push({
 
-// Menüde difficulty butonları oluştur
-difficulties.forEach(diff => {
-
-    const btn = document.createElement("button");
-    btn.innerText = diff.name;
-
-    btn.onclick = () => {
-        setDifficulty(diff);
-        startGame(mode);
-    };
-
-    difficultyContainer.appendChild(btn);
+time:n.time,
+lane:n.lane,
+hit:false,
+element:null
 
 });
 
-document.getElementById("storyBtn").onclick = () => {
+});
 
-    mode = "story";
+menu.style.display="none";
+hud.style.display="block";
+gameArea.style.display="flex";
 
-    difficultySelection.style.display = "block";
+music.currentTime=0;
+music.play();
 
-    document.getElementById("storyBtn").style.display = "none";
-    document.getElementById("endlessBtn").style.display = "none";
+gameStartTime=performance.now();
 
-};
+gameRunning=true;
 
-document.getElementById("endlessBtn").onclick = () => {
-
-    mode = "endless";
-
-    difficultySelection.style.display = "block";
-
-    document.getElementById("storyBtn").style.display = "none";
-    document.getElementById("endlessBtn").style.display = "none";
-
-};
-
-function setDifficulty(diff){
-
-    difficulty = diff.level;
-
-    bpm = diff.bpm;
-
-    beatDuration = 60000 / bpm;
-
-    scrollSpeed = 0.25 + difficulty * 0.05;
-
-    hitWindow = 200 - difficulty * 20;
-
-}
-
-function startGame(selectedMode){
-
-    mode = selectedMode;
-
-    resetGame();
-
-    if(mode==="story") generateStoryBeatmap();
-    if(mode==="endless") generateEndlessInitialNotes();
-
-    menu.style.display = "none";
-    difficultySelection.style.display = "none";
-    hud.style.display = "block";
-    gameArea.style.display = "flex";
-
-    gameStartTime = performance.now();
-
-    gameRunning = true;
-
-    requestAnimationFrame(gameLoop);
+requestAnimationFrame(gameLoop);
 
 }
 
 function resetGame(){
 
-    score = 0;
-    combo = 0;
-    missCount = 0;
-    health = 50;
+score=0;
+combo=0;
+missCount=0;
+health=50;
 
-    totalHitValue = 0;
-    totalPossibleValue = 0;
+totalHitValue=0;
+totalPossibleValue=0;
 
-    activeNotes = [];
+lanes.forEach(l=>l.innerHTML="");
 
-    lanes.forEach(lane => lane.innerHTML = "");
-
-    updateHUD();
-
-}
-
-// Story Mode Beatmap
-function generateStoryBeatmap(){
-
-    activeNotes = [];
-
-    const map = beatmaps[difficulty] || [];
-
-    map.forEach(note => {
-
-        activeNotes.push({
-
-            time: note.time,
-            lane: note.lane,
-            hit: false,
-            element: null
-
-        });
-
-    });
-
-    // Eğer map boşsa fallback
-    if(activeNotes.length === 0){
-
-        for(let i=0;i<20;i++){
-
-            activeNotes.push({
-
-                time: i * beatDuration,
-                lane: Math.floor(Math.random()*4),
-                hit:false,
-                element:null
-
-            });
-
-        }
-
-    }
-
-}
-
-// Endless Mode başlangıç notaları
-function generateEndlessInitialNotes(){
-
-    activeNotes = [];
-
-    for(let i=0;i<30;i++){
-
-        const time = i * (300 + Math.random()*700)/difficulty;
-
-        const lane = Math.floor(Math.random()*4);
-
-        activeNotes.push({
-
-            time,
-            lane,
-            hit:false,
-            element:null
-
-        });
-
-    }
+updateHUD();
 
 }
 
 function spawnNote(note){
 
-    const el = document.createElement("div");
+const el=document.createElement("div");
 
-    el.classList.add("note");
+el.classList.add("note");
 
-    lanes[note.lane].appendChild(el);
+lanes[note.lane].appendChild(el);
 
-    note.element = el;
+note.element=el;
 
 }
 
 function gameLoop(){
 
-    if(!gameRunning) return;
+if(!gameRunning)return;
 
-    const currentTime = performance.now() - gameStartTime;
+const currentTime=music.currentTime*1000;
 
-    // Endless mode sürekli nota üretir
-    if(mode==="endless"){
+activeNotes.forEach(note=>{
 
-        const lastNote = activeNotes[activeNotes.length-1];
+if(!note.element && currentTime>=note.time-2000){
 
-        if(!lastNote || currentTime > lastNote.time - 2000){
+spawnNote(note);
 
-            const nextTime = lastNote ? lastNote.time + (300 + Math.random()*700)/difficulty : 0;
+}
 
-            const lane = Math.floor(Math.random()*4);
+if(note.element && !note.hit){
 
-            activeNotes.push({
+const y=hitLineY-(note.time-currentTime)*scrollSpeed;
 
-                time:nextTime,
-                lane,
-                hit:false,
-                element:null
+note.element.style.top=y+"px";
 
-            });
+if(y>hitLineY+50){
 
-        }
+registerMiss(note);
 
-    }
+}
 
-    activeNotes.forEach(note=>{
+}
 
-        if(!note.element && currentTime>=note.time-2500) spawnNote(note);
+});
 
-        if(note.element && !note.hit){
+updateHUD();
 
-            const y = hitLineY - (note.time - currentTime)*scrollSpeed;
+if(activeNotes.length>0 && activeNotes.every(n=>n.hit)){
 
-            note.element.style.top = y + "px";
+endGame();
 
-            if(y > hitLineY + 50){
+}
 
-                registerMiss(note);
-
-            }
-
-        }
-
-    });
-
-    updateHUD();
-
-    if(mode==="story" && activeNotes.length>0 && activeNotes.every(n=>n.hit)){
-
-        endGame();
-
-    }
-
-    requestAnimationFrame(gameLoop);
+requestAnimationFrame(gameLoop);
 
 }
 
 document.addEventListener("keydown",e=>{
 
-    if(!gameRunning) return;
+if(!gameRunning)return;
 
-    const keyMap = {
+const keyMap={
 
-        ArrowLeft:0,
-        ArrowDown:1,
-        ArrowUp:2,
-        ArrowRight:3
+ArrowLeft:0,
+ArrowDown:1,
+ArrowUp:2,
+ArrowRight:3
 
-    };
+};
 
-    if(!(e.key in keyMap)) return;
+if(!(e.key in keyMap))return;
 
-    const lane = keyMap[e.key];
+const lane=keyMap[e.key];
 
-    const currentTime = performance.now() - gameStartTime;
+const currentTime=music.currentTime*1000;
 
-    activeNotes.forEach(note=>{
+activeNotes.forEach(note=>{
 
-        if(note.lane===lane && !note.hit && note.element){
+if(note.lane===lane && !note.hit && note.element){
 
-            const diff = Math.abs(note.time-currentTime);
+const diff=Math.abs(note.time-currentTime);
 
-            if(diff<hitWindow){
+if(diff<hitWindow){
 
-                registerHit(note,diff);
+registerHit(note,diff);
 
-            }
+}
 
-        }
+}
 
-    });
+});
 
 });
 
 function registerHit(note,diff){
 
-    note.hit=true;
+note.hit=true;
 
-    if(note.element) note.element.remove();
+if(note.element)note.element.remove();
 
-    let value=350;
+let value=350;
 
-    if(diff>150) value=100;
-    else if(diff>100) value=200;
-    else if(diff>50) value=300;
+if(diff>150)value=100;
+else if(diff>100)value=200;
+else if(diff>50)value=300;
 
-    score+=value;
+score+=value;
 
-    combo++;
+combo++;
 
-    if(combo>maxCombo) maxCombo=combo;
+totalHitValue+=value;
 
-    totalHitValue+=value;
+totalPossibleValue+=350;
 
-    totalPossibleValue+=350;
-
-    if(mode==="story") health=Math.min(health+2,100);
-    else if(mode==="endless") health=Math.min(health+1,100);
+health=Math.min(health+2,100);
 
 }
 
 function registerMiss(note){
 
-    note.hit=true;
+note.hit=true;
 
-    if(note.element) note.element.remove();
+if(note.element)note.element.remove();
 
-    combo=0;
+combo=0;
 
-    missCount++;
+missCount++;
 
-    if(mode==="story"){
+health-=10;
 
-        health-=10;
+if(health<=0){
 
-        if(health<=0) failGame();
+failGame();
 
-    }
-
-    if(mode==="endless"){
-
-        health=Math.max(health-5,0);
-
-    }
+}
 
 }
 
 function updateHUD(){
 
-    document.getElementById("score").innerText="Score: "+score;
+document.getElementById("score").innerText="Score: "+score;
 
-    document.getElementById("combo").innerText="Combo: "+combo;
+document.getElementById("combo").innerText="Combo: "+combo;
 
-    document.getElementById("miss").innerText="Miss: "+missCount;
+document.getElementById("miss").innerText="Miss: "+missCount;
 
-    const accuracy = totalPossibleValue===0 ? 100 : (totalHitValue/totalPossibleValue)*100;
+const acc=totalPossibleValue===0?100:(totalHitValue/totalPossibleValue)*100;
 
-    document.getElementById("accuracy").innerText="Accuracy: "+accuracy.toFixed(2)+"%";
+document.getElementById("accuracy").innerText="Accuracy: "+acc.toFixed(2)+"%";
 
-    document.getElementById("health-bar").style.width = health+"%";
+document.getElementById("health-bar").style.width=health+"%";
 
 }
 
 function failGame(){
 
-    gameRunning=false;
+gameRunning=false;
 
-    alert("FAILED");
+music.pause();
 
-    resetToMenu();
+alert("FAILED");
+
+location.reload();
 
 }
 
 function endGame(){
 
-    gameRunning=false;
+gameRunning=false;
 
-    alert("PASSED");
+music.pause();
 
-    resetToMenu();
+alert("SONG COMPLETE");
 
-}
-
-function resetToMenu(){
-
-    menu.style.display="block";
-
-    difficultySelection.style.display="none";
-
-    hud.style.display="none";
-
-    gameArea.style.display="none";
-
-    document.getElementById("storyBtn").style.display="inline-block";
-    document.getElementById("endlessBtn").style.display="inline-block";
+location.reload();
 
 }
