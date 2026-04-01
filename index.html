@@ -10,13 +10,14 @@
 
 <div id="menu">
     <h2>Select Mode</h2>
-    <button id="storyBtn">Story Mode</button>
-    <button id="endlessBtn">Endless Mode</button>
-    <button onclick="startMusicMode()">Music Mode</button>
+    <button onclick="startMode('story')">Story Mode</button>
+    <button onclick="startMode('endless')">Endless Mode</button>
+    <button onclick="showMusicMenu()">Music Mode</button>
 
-    <div id="difficulty-selection" style="display:none;">
-        <h2>Select Difficulty</h2>
-        <div id="difficulty-buttons"></div>
+    <div id="musicMenu" style="display:none;">
+        <h3>Select Song</h3>
+        <button onclick="selectSong()">Eye of the Tiger</button>
+        <button onclick="startMode('music')">Start Music Mode</button>
     </div>
 </div>
 
@@ -39,11 +40,8 @@
     <div id="hit-line"></div>
 </div>
 
-<!-- Script -->
-<script src="script.js"></script>
-
-<!-- Müzik dosyası: Eye of the Tiger -->
 <audio id="game-music" src="music/eye_of_the_tiger.mp3"></audio>
 
+<script src="script.js"></script>
 </body>
 </html>
