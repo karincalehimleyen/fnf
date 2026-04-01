@@ -1,283 +1,254 @@
-// Çavuş Game - Music Mode
-
 const lanes = [
-document.getElementById("lane0"),
-document.getElementById("lane1"),
-document.getElementById("lane2"),
-document.getElementById("lane3")
+    document.getElementById("lane0"),
+    document.getElementById("lane1"),
+    document.getElementById("lane2"),
+    document.getElementById("lane3")
 ];
 
 const music = document.getElementById("game-music");
 
+let mode = null;
+let gameRunning = false;
+
+let score, combo, miss, health;
+let totalHit, totalPossible;
+
+let notes = [];
+
 const hitLineY = 500;
+const hitWindow = 150;
+const scrollSpeed = 0.35;
 
-let gameRunning=false;
-let mode=null;
+let startTime = 0;
 
-let score=0;
-let combo=0;
-let missCount=0;
-let health=50;
+// ================= MENU =================
 
-let totalHitValue=0;
-let totalPossibleValue=0;
-
-let activeNotes=[];
-
-let scrollSpeed=0.35;
-let hitWindow=180;
-
-let gameStartTime=0;
-
-// MUSIC MODE BEATMAP
-// time = milisaniye
-// lane = 0 sol,1 aşağı,2 yukarı,3 sağ
-
-const musicChart = [
-
-{time:1000,lane:0},
-{time:1500,lane:1},
-{time:2000,lane:2},
-{time:2500,lane:3},
-
-{time:3000,lane:0},
-{time:3500,lane:1},
-{time:4000,lane:2},
-{time:4500,lane:3},
-
-{time:5000,lane:1},
-{time:5500,lane:2},
-{time:6000,lane:0},
-{time:6500,lane:3}
-
-];
-
-const menu=document.getElementById("menu");
-const hud=document.getElementById("hud");
-const gameArea=document.getElementById("game");
-
-// oyun başlat
-function startMusicMode(){
-
-resetGame();
-
-activeNotes=[];
-
-musicChart.forEach(n=>{
-
-activeNotes.push({
-
-time:n.time,
-lane:n.lane,
-hit:false,
-element:null
-
-});
-
-});
-
-menu.style.display="none";
-hud.style.display="block";
-gameArea.style.display="flex";
-
-music.currentTime=0;
-music.play();
-
-gameStartTime=performance.now();
-
-gameRunning=true;
-
-requestAnimationFrame(gameLoop);
-
+function showMusicMenu(){
+    document.getElementById("musicMenu").style.display = "block";
 }
+
+function selectSong(){
+    alert("Eye of the Tiger selected");
+}
+
+// ================= START =================
+
+function startMode(selectedMode){
+
+    mode = selectedMode;
+
+    resetGame();
+
+    if(mode === "story") generateStory();
+    if(mode === "endless") generateEndless();
+    if(mode === "music") startMusic();
+
+    document.getElementById("menu").style.display = "none";
+    document.getElementById("hud").style.display = "block";
+    document.getElementById("game").style.display = "flex";
+
+    startTime = performance.now();
+    gameRunning = true;
+
+    requestAnimationFrame(gameLoop);
+}
+
+// ================= RESET =================
 
 function resetGame(){
+    score = 0;
+    combo = 0;
+    miss = 0;
+    health = 50;
 
-score=0;
-combo=0;
-missCount=0;
-health=50;
+    totalHit = 0;
+    totalPossible = 0;
 
-totalHitValue=0;
-totalPossibleValue=0;
+    notes = [];
 
-lanes.forEach(l=>l.innerHTML="");
-
-updateHUD();
-
+    lanes.forEach(l => l.innerHTML = "");
 }
 
-function spawnNote(note){
+// ================= STORY =================
 
-const el=document.createElement("div");
-
-el.classList.add("note");
-
-lanes[note.lane].appendChild(el);
-
-note.element=el;
-
+function generateStory(){
+    for(let i=0;i<20;i++){
+        notes.push({
+            time: i * 800,
+            lane: i % 4,
+            hit:false,
+            el:null
+        });
+    }
 }
+
+// ================= ENDLESS =================
+
+function generateEndless(){
+    for(let i=0;i<30;i++){
+        notes.push({
+            time: i * (300 + Math.random()*500),
+            lane: Math.floor(Math.random()*4),
+            hit:false,
+            el:null
+        });
+    }
+}
+
+// ================= MUSIC =================
+
+function startMusic(){
+    music.currentTime = 0;
+    music.play();
+
+    for(let i=0;i<50;i++){
+        notes.push({
+            time: i * 500,
+            lane: Math.floor(Math.random()*4),
+            hit:false,
+            el:null
+        });
+    }
+}
+
+// ================= LOOP =================
 
 function gameLoop(){
 
-if(!gameRunning)return;
+    if(!gameRunning) return;
 
-const currentTime=music.currentTime*1000;
+    const current = performance.now() - startTime;
 
-activeNotes.forEach(note=>{
+    // endless extend
+    if(mode==="endless"){
+        const last = notes[notes.length-1];
+        if(current > last.time - 2000){
+            notes.push({
+                time: last.time + (300 + Math.random()*500),
+                lane: Math.floor(Math.random()*4),
+                hit:false,
+                el:null
+            });
+        }
+    }
 
-if(!note.element && currentTime>=note.time-2000){
+    notes.forEach(n=>{
 
-spawnNote(note);
+        if(!n.el && current >= n.time - 2000){
+            const el = document.createElement("div");
+            el.className = "note";
+            lanes[n.lane].appendChild(el);
+            n.el = el;
+        }
 
+        if(n.el && !n.hit){
+
+            const y = hitLineY - (n.time - current)*scrollSpeed;
+            n.el.style.top = y+"px";
+
+            if(y > hitLineY + 50){
+                registerMiss(n);
+            }
+        }
+    });
+
+    updateHUD();
+
+    if(mode==="story" && notes.every(n=>n.hit)){
+        endGame();
+    }
+
+    requestAnimationFrame(gameLoop);
 }
 
-if(note.element && !note.hit){
+// ================= INPUT =================
 
-const y=hitLineY-(note.time-currentTime)*scrollSpeed;
+document.addEventListener("keydown", e=>{
 
-note.element.style.top=y+"px";
+    const map = {
+        ArrowLeft:0,
+        ArrowDown:1,
+        ArrowUp:2,
+        ArrowRight:3
+    };
 
-if(y>hitLineY+50){
+    if(!(e.key in map)) return;
 
-registerMiss(note);
+    const lane = map[e.key];
+    const current = performance.now() - startTime;
 
-}
+    for(let n of notes){
+        if(n.lane===lane && !n.hit && n.el){
 
-}
+            const diff = Math.abs(n.time - current);
 
+            if(diff < hitWindow){
+                registerHit(n,diff);
+                break;
+            }
+        }
+    }
 });
 
-updateHUD();
+// ================= HIT =================
 
-if(activeNotes.length>0 && activeNotes.every(n=>n.hit)){
+function registerHit(n,diff){
 
-endGame();
+    n.hit = true;
+    n.el.remove();
 
+    let val = diff < 50 ? 300 : diff < 100 ? 200 : 100;
+
+    score += val;
+    combo++;
+
+    totalHit += val;
+    totalPossible += 300;
+
+    health = Math.min(health+2,100);
 }
 
-requestAnimationFrame(gameLoop);
+// ================= MISS =================
 
+function registerMiss(n){
+
+    n.hit = true;
+    n.el.remove();
+
+    combo = 0;
+    miss++;
+
+    health -= 10;
+
+    if(health <= 0 && mode!=="endless"){
+        failGame();
+    }
 }
 
-document.addEventListener("keydown",e=>{
-
-if(!gameRunning)return;
-
-const keyMap={
-
-ArrowLeft:0,
-ArrowDown:1,
-ArrowUp:2,
-ArrowRight:3
-
-};
-
-if(!(e.key in keyMap))return;
-
-const lane=keyMap[e.key];
-
-const currentTime=music.currentTime*1000;
-
-activeNotes.forEach(note=>{
-
-if(note.lane===lane && !note.hit && note.element){
-
-const diff=Math.abs(note.time-currentTime);
-
-if(diff<hitWindow){
-
-registerHit(note,diff);
-
-}
-
-}
-
-});
-
-});
-
-function registerHit(note,diff){
-
-note.hit=true;
-
-if(note.element)note.element.remove();
-
-let value=350;
-
-if(diff>150)value=100;
-else if(diff>100)value=200;
-else if(diff>50)value=300;
-
-score+=value;
-
-combo++;
-
-totalHitValue+=value;
-
-totalPossibleValue+=350;
-
-health=Math.min(health+2,100);
-
-}
-
-function registerMiss(note){
-
-note.hit=true;
-
-if(note.element)note.element.remove();
-
-combo=0;
-
-missCount++;
-
-health-=10;
-
-if(health<=0){
-
-failGame();
-
-}
-
-}
+// ================= HUD =================
 
 function updateHUD(){
 
-document.getElementById("score").innerText="Score: "+score;
+    document.getElementById("score").innerText = "Score: " + score;
+    document.getElementById("combo").innerText = "Combo: " + combo;
+    document.getElementById("miss").innerText = "Miss: " + miss;
 
-document.getElementById("combo").innerText="Combo: "+combo;
+    const acc = totalPossible===0 ? 100 : (totalHit/totalPossible)*100;
+    document.getElementById("accuracy").innerText = "Accuracy: " + acc.toFixed(2)+"%";
 
-document.getElementById("miss").innerText="Miss: "+missCount;
-
-const acc=totalPossibleValue===0?100:(totalHitValue/totalPossibleValue)*100;
-
-document.getElementById("accuracy").innerText="Accuracy: "+acc.toFixed(2)+"%";
-
-document.getElementById("health-bar").style.width=health+"%";
-
+    document.getElementById("health-bar").style.width = health+"%";
 }
 
+// ================= END =================
+
 function failGame(){
-
-gameRunning=false;
-
-music.pause();
-
-alert("FAILED");
-
-location.reload();
-
+    gameRunning = false;
+    alert("FAILED");
+    location.reload();
 }
 
 function endGame(){
-
-gameRunning=false;
-
-music.pause();
-
-alert("SONG COMPLETE");
-
-location.reload();
-
+    gameRunning = false;
+    alert("PASSED");
+    location.reload();
 }
